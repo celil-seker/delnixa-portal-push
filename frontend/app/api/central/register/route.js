@@ -1,0 +1,1 @@
+export async function POST(req){const b=await req.json();const r=await fetch("http://api:8000/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const t=await r.text();return new Response(t,{status:r.status,headers:{"Content-Type":r.headers.get("content-type")||"application/json"}});}

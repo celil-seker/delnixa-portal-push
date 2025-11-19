@@ -1,0 +1,54 @@
+.gip-container {
+  font-family: Tahoma, Arial, sans-serif;
+  padding: 10px;
+}
+
+.gip-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #003366;
+  margin-bottom: 8px;
+}
+
+.gip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.gip-table th {
+  background: #003366;
+  color: white;
+  font-weight: bold;
+  border-right: 1px solid #002244;
+  padding: 4px;
+  text-align: center;
+  height: 26px;
+}
+
+.subheader th {
+  background: #f0f2f4;
+  color: #003366;
+  font-size: 11px;
+  border-bottom: 1px solid #c1c4c7;
+}
+
+.gip-table td {
+  border-right: 1px solid #d0d5da;
+  border-bottom: 1px solid #d6d9dc;
+  padding: 4px;
+  height: 22px;
+}
+
+.zebra {
+  background-color: #f6f7f9;
+}
+
+.bold {
+  font-weight: 600;
+}
+
+.gip-table tr:hover {
+  background-color: #e4e8ef;
+}
+
