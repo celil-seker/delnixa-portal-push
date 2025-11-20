@@ -6,7 +6,7 @@ export default function GuniciTahta() {
   const [status, setStatus] = useState("BAĞLANIYOR...");
   const wsRef = useRef(null);
 
-  const CONNECT_URL = process.env.NEXT_PUBLIC_API_URL + "/epias/ws/connect";
+  const CONNECT_URL = process.env.NEXT_PUBLIC_API_URL + "/api/epias/ws/connect";
 
   function formatRemaining(deliveryStart) {
     if (!deliveryStart) return "-";

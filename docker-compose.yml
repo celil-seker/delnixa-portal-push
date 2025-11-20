@@ -12,7 +12,10 @@ services:
   api:
     container_name: delnixa-portal-api-1
     build: ./backend
-    expose:
+    ports:
+      - "8000:8000"
+    # expose removed
+    #
       - "8000"
     restart: unless-stopped
     depends_on:

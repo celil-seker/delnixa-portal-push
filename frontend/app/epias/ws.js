@@ -4,14 +4,13 @@ export async function connectWS(portalToken, onMessage, onStatus) {
     try {
         onStatus("⏳ Backend kontrol ediliyor...");
 
-        // Mutlaka tam URL ile çağır
-        const resp = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/epias/ws/connect?portal_token=${portalToken}`);
-
+        // Doğru endpoint
+        const resp = await fetch(`/api/epias/ws/connect?portal_token=${portalToken}`);
         if (!resp.ok) throw new Error("Backend WS connect hatası");
         const data = await resp.json();
 
-        // Full EPİAŞ URL
-        const wsUrl = `wss://gunici.epias.com.tr/gunici-service${data.ws_path}`;
+        // Backend zaten full ws_url dönüyor
+        const wsUrl = data.ws_url;
 
         onStatus("🔑 JWT alındı — WS bağlanıyor...");
 
@@ -25,23 +24,23 @@ export async function connectWS(portalToken, onMessage, onStatus) {
             }));
         };
 
-        ws.onmessage = (evt) => {
-            try {
-                const msg = JSON.parse(evt.data);
-                onMessage(msg);
-            } catch (e) {
-                console.error("Parse error:", e);
-            }
+        ws.onmessage = (msg) => {
+            onMessage(msg.data);
         };
 
-        ws.onerror = () => onStatus("🟠 WS hata");
-        ws.onclose = () => onStatus("🔴 WS kapandı");
+        ws.onerror = (err) => {
+            onStatus("❌ WS hata");
+            console.log("WS ERROR:", err);
+        };
 
-        return ws;
+        ws.onclose = () => {
+            onStatus("🔄 Bağlantı kapandı — tekrar bağlanıyor...");
+            setTimeout(() => connectWS(portalToken, onMessage, onStatus), 3000);
+        };
 
     } catch (err) {
         onStatus("❌ WS bağlantısı kurulamadı");
         console.error(err);
-        return null;
     }
 }
+

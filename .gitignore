@@ -1,8 +1,8 @@
+db_data/
 node_modules/
-frontend/node_modules/
 frontend/.next/
 backend/__pycache__/
-*.pyc
-*.log
 .env
-.env.local
+*.log
+*.db
+__pycache__/
