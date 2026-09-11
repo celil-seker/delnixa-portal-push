@@ -9,3 +9,4 @@ __pycache__/
 certs/
 .env.local
 *.pem
+frontend/.env.local

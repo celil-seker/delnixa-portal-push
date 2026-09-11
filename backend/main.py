@@ -10,7 +10,7 @@ app = FastAPI(title="Delnixa Central API")
 app.include_router(epias_router, prefix="/api/epias/ws")
 app.include_router(central_router, prefix="/api/central")
 
-JWT_SECRET = "delnixa_super_secret_key"
+JWT_SECRET = os.getenv("JWT_SECRET", "delnixa_super_secret_key")
 JWT_ALGO = "HS256"
 
 DB_URL = os.getenv("DATABASE_URL", "postgresql://delnixa:delnixa@db:5432/delnixadb")
