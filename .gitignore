@@ -6,3 +6,6 @@ backend/__pycache__/
 *.log
 *.db
 __pycache__/
+certs/
+.env.local
+*.pem

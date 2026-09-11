@@ -1,52 +1,45 @@
-version: "3.8"
-
+version: '3.8'
 services:
-
   web:
     container_name: delnixa-portal-web-1
     build: ./frontend
     expose:
-      - "3000"
+    - '3000'
     restart: unless-stopped
-
   api:
     container_name: delnixa-portal-api-1
     build: ./backend
     ports:
-      - "8000:8000"
-    # expose removed
-    #
-      - "8000"
+    - 8000:8000
+    - '8000'
     restart: unless-stopped
     depends_on:
-      - db
+    - db
     environment:
-      - DATABASE_URL=postgresql://delnixa:delnixa123@db:5432/delnixadb
-
+    - DATABASE_URL=postgresql://delnixa:delnixa123@db:5432/delnixadb
   db:
     container_name: delnixa-portal-db-1
     image: postgres:16
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=delnixa
-      - POSTGRES_PASSWORD=delnixa123
-      - POSTGRES_DB=delnixadb
+    - POSTGRES_USER=delnixa
+    - POSTGRES_PASSWORD=delnixa123
+    - POSTGRES_DB=delnixadb
     volumes:
-      - db_data:/var/lib/postgresql/data
-
+    - db_data:/var/lib/postgresql/data
   nginx:
     container_name: delnixa-portal-nginx-1
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+    - 80:80
+    - 443:443
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+    - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    - /etc/letsencrypt:/etc/letsencrypt:ro
+    - ./certs:/etc/nginx/certs:ro
     depends_on:
-      - web
-      - api
-
+    - web
+    - api
 volumes:
-  db_data:
+  db_data: null
