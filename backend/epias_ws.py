@@ -6,7 +6,7 @@ import jwt
 
 router = APIRouter()
 
-JWT_SECRET = "delnixa_super_secret_key"
+JWT_SECRET = os.getenv("JWT_SECRET", "delnixa_super_secret_key")
 JWT_ALGO   = "HS256"
 
 DB_URL = os.getenv("DATABASE_URL", "postgresql://delnixa:delnixa@db:5432/delnixadb")
