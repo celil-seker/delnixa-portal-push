@@ -16,7 +16,9 @@ SessionLocal = sessionmaker(bind=engine)
 CAS_BASE     = "https://cas.epias.com.tr/cas"
 BASE_URL     = "https://gunici.epias.com.tr"
 SERVICE_URL  = f"{BASE_URL}/gunici-service"
+TRADING_URL  = f"{BASE_URL}/gunici-trading-service"
 USERINFO_URL = f"{SERVICE_URL}/rest/v1/user/info"
+OFFER_SAVE_URL = f"{TRADING_URL}/rest/v1/offer/hourly/save"
 
 def verify_portal_token(token: str):
     try:
@@ -68,6 +70,32 @@ def get_epias_jwt_and_ws(tgt):
 
     ws_url = f"wss://gunici.epias.com.tr/gunici-service{ws_path}"
     return access_token, ws_path, ws_url
+
+def place_offer(access_token, contract_name, side, price, quantity, region="TR1"):
+    return requests.post(
+        OFFER_SAVE_URL,
+        headers={
+            "intraday-jwt": access_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        json={
+            "contractName": contract_name,
+            "offerType": side,
+            "optionType": "NORMAL",
+            "price": price,
+            "quantity": quantity,
+            "region": region,
+            "description": "delnixa-bot",
+            "expireTime": None,
+            "priceLeveledOfferDetails": None,
+            "isActive": True,
+            "isConfirmed": False,
+            "timeLeveledOfferDetails": None,
+        },
+        verify=False,
+        timeout=10,
+    )
 
 @router.get("/connect")
 def ws_connect(portal_token: str):

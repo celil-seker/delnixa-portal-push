@@ -1,12 +1,18 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import BotCell from "./BotCell";
+import BotPanel from "./BotPanel";
 
 export default function GuniciTahta() {
   const [rows, setRows] = useState({});
   const [status, setStatus] = useState("BAĞLANIYOR...");
+  const [bots, setBots] = useState([]);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState(null);
   const wsRef = useRef(null);
 
-  const CONNECT_URL = process.env.NEXT_PUBLIC_API_URL + "/api/epias/ws/connect";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const CONNECT_URL = apiUrl + "/api/epias/ws/connect";
 
   function formatRemaining(deliveryStart) {
     if (!deliveryStart) return "-";
@@ -17,6 +23,24 @@ export default function GuniciTahta() {
     const mins = Math.floor(diff / 60000);
     return mins + " dk";
   }
+
+  const refreshBots = useCallback(async () => {
+    const token = localStorage.getItem("portal_token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/bots?portal_token=${token}`);
+      const data = await res.json();
+      setBots(data.bots || []);
+    } catch (e) {
+      console.error("Bot listesi alınamadı:", e);
+    }
+  }, [apiUrl]);
+
+  useEffect(() => {
+    refreshBots();
+    const interval = setInterval(refreshBots, 10000);
+    return () => clearInterval(interval);
+  }, [refreshBots]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +99,6 @@ export default function GuniciTahta() {
                 mySellPrice: 0,
                 te0: 0,
                 tgs: 0,
-                bot: "Idle",
               },
             }));
           } catch (e) {
@@ -97,6 +120,15 @@ export default function GuniciTahta() {
   const rowList = Object.values(rows).sort((a, b) =>
     a.contract.localeCompare(b.contract)
   );
+
+  function botForContract(contractName) {
+    return bots.find((b) => b.contract_name === contractName);
+  }
+
+  function openBotPanel(contractName) {
+    setSelectedContract(contractName);
+    setPanelOpen(true);
+  }
 
   return (
     <div className="p-4 space-y-3">
@@ -143,31 +175,36 @@ export default function GuniciTahta() {
           </thead>
 
           <tbody>
-            {rowList.map((r) => (
-              <tr key={r.contract} className="hover:bg-blue-50 transition-colors border-b">
-                <td className="px-3 py-2 border">{r.contract}</td>
-                <td className="px-3 py-2 border text-right">{r.bidQty}</td>
-                <td className="px-3 py-2 border text-right text-blue-700 font-semibold">
-                  {r.bidPrice}
-                </td>
-                <td className="px-3 py-2 border text-right">{r.diff}</td>
-                <td className="px-3 py-2 border text-right text-red-600 font-semibold">
-                  {r.askPrice}
-                </td>
-                <td className="px-3 py-2 border text-right">{r.askQty}</td>
-                <td className="px-3 py-2 border text-right">{r.ptf}</td>
-                <td className="px-3 py-2 border text-right">{r.aof}</td>
-                <td className="px-3 py-2 border text-center">{r.remaining}</td>
-                <td className="px-3 py-2 border text-right">{r.matchBuy}</td>
-                <td className="px-3 py-2 border text-right">{r.matchSell}</td>
-                <td className="px-3 py-2 border text-right">{r.matchNet}</td>
-                <td className="px-3 py-2 border text-right">{r.myBuyPrice}</td>
-                <td className="px-3 py-2 border text-right">{r.mySellPrice}</td>
-                <td className="px-3 py-2 border text-right">{r.te0}</td>
-                <td className="px-3 py-2 border text-right">{r.tgs}</td>
-                <td className="px-3 py-2 border text-center">{r.bot}</td>
-              </tr>
-            ))}
+            {rowList.map((r) => {
+              const bot = botForContract(r.contract);
+              return (
+                <tr key={r.contract} className="hover:bg-blue-50 transition-colors border-b">
+                  <td className="px-3 py-2 border">{r.contract}</td>
+                  <td className="px-3 py-2 border text-right">{r.bidQty}</td>
+                  <td className="px-3 py-2 border text-right text-blue-700 font-semibold">
+                    {r.bidPrice}
+                  </td>
+                  <td className="px-3 py-2 border text-right">{r.diff}</td>
+                  <td className="px-3 py-2 border text-right text-red-600 font-semibold">
+                    {r.askPrice}
+                  </td>
+                  <td className="px-3 py-2 border text-right">{r.askQty}</td>
+                  <td className="px-3 py-2 border text-right">{r.ptf}</td>
+                  <td className="px-3 py-2 border text-right">{r.aof}</td>
+                  <td className="px-3 py-2 border text-center">{r.remaining}</td>
+                  <td className="px-3 py-2 border text-right">{r.matchBuy}</td>
+                  <td className="px-3 py-2 border text-right">{r.matchSell}</td>
+                  <td className="px-3 py-2 border text-right">{r.matchNet}</td>
+                  <td className="px-3 py-2 border text-right">{r.myBuyPrice}</td>
+                  <td className="px-3 py-2 border text-right">{r.mySellPrice}</td>
+                  <td className="px-3 py-2 border text-right">{r.te0}</td>
+                  <td className="px-3 py-2 border text-right">{r.tgs}</td>
+                  <td className="px-3 py-2 border text-center">
+                    <BotCell status={bot?.status} onClick={() => openBotPanel(r.contract)} />
+                  </td>
+                </tr>
+              );
+            })}
 
             {rowList.length === 0 && (
               <tr>
@@ -179,6 +216,14 @@ export default function GuniciTahta() {
           </tbody>
         </table>
       </div>
+
+      <BotPanel
+        open={panelOpen}
+        kontrat={selectedContract}
+        existingBot={botForContract(selectedContract)}
+        onClose={() => setPanelOpen(false)}
+        onSaved={refreshBots}
+      />
     </div>
   );
 }

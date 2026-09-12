@@ -11,7 +11,7 @@ if [ ! -f certs/fullchain.pem ]; then
 fi
 
 if [ ! -f frontend/.env.local ]; then
-  cp frontend/.env.local.example frontend/.env.local
+  echo "NEXT_PUBLIC_API_URL=" > frontend/.env.local
   echo "frontend/.env.local oluşturuldu."
 fi
 

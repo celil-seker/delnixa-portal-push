@@ -1,7 +1,12 @@
-export default function BotCell() {
-    return (
-        <div className="flex items-center justify-center text-blue-900 text-lg">
-            🔔
-        </div>
-    );
+export default function BotCell({ status, onClick }) {
+  const icon =
+    status === "ACTIVE" ? "🟢" :
+    status === "PAUSED" ? "⏸️" :
+    status === "DONE"   ? "✅" : "🔔";
+
+  return (
+    <button onClick={onClick} className="flex items-center justify-center text-lg w-full">
+      {icon}
+    </button>
+  );
 }

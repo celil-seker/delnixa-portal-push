@@ -1,7 +1,8 @@
 from routers.central import router as central_router
+from routers.bots import router as bots_router
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, text
+from sqlalchemy import create_engine, Column, Integer, Float, String, ForeignKey, DateTime, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 import hashlib, jwt, datetime, os, requests
 from epias_ws import router as epias_router
@@ -9,6 +10,7 @@ from epias_ws import router as epias_router
 app = FastAPI(title="Delnixa Central API")
 app.include_router(epias_router, prefix="/api/epias/ws")
 app.include_router(central_router, prefix="/api/central")
+app.include_router(bots_router, prefix="/api/bots")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "delnixa_super_secret_key")
 JWT_ALGO = "HS256"
@@ -35,13 +37,27 @@ class CentralAccount(Base):
     epias_password_encrypted = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class Bot(Base):
+    __tablename__ = "bots"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    contract_name = Column(String, nullable=False)
+    region = Column(String, default="TR1")
+    side = Column(String, nullable=False)
+    min_price = Column(Float, nullable=False)
+    max_price = Column(Float, nullable=False)
+    target_quantity = Column(Float, nullable=False)
+    filled_quantity = Column(Float, default=0)
+    status = Column(String, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 Base.metadata.create_all(engine)
 
 class LoginIn(BaseModel):
     username: str
     password: str
 
-# --- TOKEN ---
 def make_token(username: str):
     payload = {
         "sub": username,
@@ -63,3 +79,7 @@ def login(body: LoginIn):
     finally:
         db.close()
 
+@app.on_event("startup")
+async def startup_event():
+    from bot_engine import start_bot_engine
+    start_bot_engine()
