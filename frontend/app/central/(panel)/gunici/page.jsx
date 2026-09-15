@@ -16,12 +16,9 @@ export default function GuniciTahta() {
 
   function formatRemaining(deliveryStart) {
     if (!deliveryStart) return "-";
-    const now = new Date();
-    const end = new Date(deliveryStart);
-    const diff = end - now;
+    const diff = new Date(deliveryStart) - new Date();
     if (diff <= 0) return "0 dk";
-    const mins = Math.floor(diff / 60000);
-    return mins + " dk";
+    return Math.floor(diff / 60000) + " dk";
   }
 
   const refreshBots = useCallback(async () => {
@@ -31,9 +28,7 @@ export default function GuniciTahta() {
       const res = await fetch(`${apiUrl}/api/bots?portal_token=${token}`);
       const data = await res.json();
       setBots(data.bots || []);
-    } catch (e) {
-      console.error("Bot listesi alınamadı:", e);
-    }
+    } catch (e) { console.error(e); }
   }, [apiUrl]);
 
   useEffect(() => {
@@ -44,186 +39,126 @@ export default function GuniciTahta() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function connect() {
       try {
         const token = localStorage.getItem("portal_token");
-        if (!token) {
-          setStatus("HATA: TOKEN YOK");
-          return;
-        }
-
+        if (!token) { setStatus("HATA: TOKEN YOK"); return; }
         const res = await fetch(`${CONNECT_URL}?portal_token=${token}`);
         const data = await res.json();
-        if (!data.ws_url) {
-          setStatus("HATA: WS URL GELMEDİ");
-          return;
-        }
-
+        if (!data.ws_url) { setStatus("HATA: WS URL GELMEDİ"); return; }
         const ws = new WebSocket(data.ws_url);
         wsRef.current = ws;
-
         ws.onopen = () => setStatus("BAĞLI");
-        ws.onclose = () => {
-          if (!cancelled) {
-            setStatus("BAĞLANTI KAPANDI — 3sn sonra tekrar deneniyor");
-            setTimeout(connect, 3000);
-          }
-        };
+        ws.onclose = () => { if (!cancelled) { setStatus("BAĞLANTI KAPANDI — 3sn sonra tekrar deneniyor"); setTimeout(connect, 3000); } };
         ws.onerror = () => setStatus("WS HATASI");
-
         ws.onmessage = (msg) => {
           try {
             const payload = JSON.parse(msg.data);
             if (payload.eventType !== "HourlyContractBoard") return;
-
             const c = payload.body || {};
             const info = c.boardInformation || {};
-
+            const ptf = info.mcp ?? 0;
+            const bestBuy = c.bestBuyPrice ?? 0;
+            const bestSell = c.bestSellPrice ?? 0;
+            let yon = "-";
+            if (bestBuy && bestSell) {
+              const mid = (bestBuy + bestSell) / 2;
+              yon = mid > ptf ? "YAL" : mid < ptf ? "YAT" : "-";
+            }
             setRows((prev) => ({
               ...prev,
               [c.name]: {
-                contract: c.name,
-                bidQty: c.bestBuyQuantity ?? 0,
-                bidPrice: c.bestBuyPrice ?? 0,
-                diff: c.priceGap ?? 0,
-                askPrice: c.bestSellPrice ?? 0,
-                askQty: c.bestSellQuantity ?? 0,
-                ptf: info.mcp ?? 0,
-                aof: info.averagePrice ?? 0,
-                remaining: formatRemaining(c.deliveryDateStart),
-                matchBuy: 0,
-                matchSell: 0,
-                matchNet: 0,
-                myBuyPrice: 0,
-                mySellPrice: 0,
-                te0: 0,
-                tgs: 0,
+                contract: c.name, teo: 0, ki: 0, ptf, yon,
+                bidQty: c.bestBuyQuantity ?? 0, bidPrice: bestBuy,
+                askPrice: bestSell, askQty: c.bestSellQuantity ?? 0,
+                netPos: info.netPosition ?? 0, remaining: formatRemaining(c.deliveryDateStart),
               },
             }));
-          } catch (e) {
-            console.error("WS parse error:", e);
-          }
+          } catch (e) { console.error("WS parse error:", e); }
         };
-      } catch (e) {
-        setStatus("HATA (EXCEPTION)");
-      }
+      } catch (e) { setStatus("HATA (EXCEPTION)"); }
     }
     connect();
-
-    return () => {
-      cancelled = true;
-      if (wsRef.current) wsRef.current.close();
-    };
+    return () => { cancelled = true; if (wsRef.current) wsRef.current.close(); };
   }, []);
 
-  const rowList = Object.values(rows).sort((a, b) =>
-    a.contract.localeCompare(b.contract)
-  );
-
-  function botForContract(contractName) {
-    return bots.find((b) => b.contract_name === contractName);
-  }
-
-  function openBotPanel(contractName) {
-    setSelectedContract(contractName);
-    setPanelOpen(true);
+  const rowList = Object.values(rows).sort((a, b) => a.contract.localeCompare(b.contract));
+  function botForContract(contractName) { return bots.find((b) => b.contract_name === contractName); }
+  function openBotPanel(contractName) { setSelectedContract(contractName); setPanelOpen(true); }
+  function priceColor(price, ptf) {
+    if (!price || !ptf) return "";
+    if (price < ptf) return "text-green-600";
+    if (price > ptf) return "text-red-600";
+    return "text-yellow-600";
   }
 
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-[#0A1A2F]">Gün İçi Piyasası Tahtası</h1>
-        <div className="text-xs">
-          WS:{" "}
-          <span
-            className={
-              status === "BAĞLI"
-                ? "text-green-600"
-                : status.startsWith("HATA")
-                ? "text-red-600"
-                : "text-yellow-600"
-            }
-          >
-            {status}
-          </span>
+        <div className="flex items-center gap-4">
+          <a href="/central/bots" className="text-xs text-blue-700 underline">Ticari Botlar →</a>
+          <div className="text-xs">
+            WS: <span className={status === "BAĞLI" ? "text-green-600" : status.startsWith("HATA") ? "text-red-600" : "text-yellow-600"}>{status}</span>
+          </div>
         </div>
       </div>
-
       <div className="w-full overflow-x-auto border border-gray-200 rounded-lg shadow-sm bg-white">
         <table className="min-w-full border-collapse text-xs">
           <thead className="bg-[#F4F6F9] text-[#0A1A2F] font-semibold">
             <tr>
-              <th className="px-3 py-2 border">Kontrat</th>
-              <th className="px-3 py-2 border">Alış Miktar</th>
-              <th className="px-3 py-2 border">Alış Fiyat</th>
-              <th className="px-3 py-2 border">Fark</th>
-              <th className="px-3 py-2 border">Satış Fiyat</th>
-              <th className="px-3 py-2 border">Satış Miktar</th>
-              <th className="px-3 py-2 border">PTF</th>
-              <th className="px-3 py-2 border">AOF</th>
-              <th className="px-3 py-2 border">Kalan</th>
-              <th className="px-3 py-2 border">Eşl. Alış</th>
-              <th className="px-3 py-2 border">Eşl. Satış</th>
-              <th className="px-3 py-2 border">Net</th>
-              <th className="px-3 py-2 border">Alış F.</th>
-              <th className="px-3 py-2 border">Satış F.</th>
-              <th className="px-3 py-2 border">TE₀</th>
-              <th className="px-3 py-2 border">TGS</th>
-              <th className="px-3 py-2 border">BOT</th>
+              <th className="px-3 py-2 border" rowSpan={2}>Kontrat</th>
+              <th className="px-3 py-2 border" rowSpan={2}>TEO/K.İ.</th>
+              <th className="px-3 py-2 border" rowSpan={2}>PTF</th>
+              <th className="px-3 py-2 border" rowSpan={2}>Yön</th>
+              <th className="px-3 py-2 border" colSpan={2}>Alış</th>
+              <th className="px-3 py-2 border" rowSpan={2}>Derinlik</th>
+              <th className="px-3 py-2 border" colSpan={2}>Satış</th>
+              <th className="px-3 py-2 border" rowSpan={2}>Net P.</th>
+              <th className="px-3 py-2 border" rowSpan={2}>Kalan</th>
+              <th className="px-3 py-2 border" rowSpan={2}>BOT</th>
+            </tr>
+            <tr>
+              <th className="px-3 py-1 border font-normal">T.M.</th>
+              <th className="px-3 py-1 border font-normal">T.F.</th>
+              <th className="px-3 py-1 border font-normal">T.F.</th>
+              <th className="px-3 py-1 border font-normal">T.M.</th>
             </tr>
           </thead>
-
           <tbody>
             {rowList.map((r) => {
               const bot = botForContract(r.contract);
               return (
                 <tr key={r.contract} className="hover:bg-blue-50 transition-colors border-b">
-                  <td className="px-3 py-2 border">{r.contract}</td>
+                  <td className="px-3 py-2 border font-medium">{r.contract}</td>
+                  <td className="px-3 py-2 border text-center text-gray-400">{r.teo}/{r.ki}</td>
+                  <td className="px-3 py-2 border text-right font-semibold">{r.ptf}</td>
+                  <td className={`px-3 py-2 border text-center font-semibold ${r.yon === "YAL" ? "text-red-600" : r.yon === "YAT" ? "text-green-600" : ""}`}>{r.yon}</td>
                   <td className="px-3 py-2 border text-right">{r.bidQty}</td>
-                  <td className="px-3 py-2 border text-right text-blue-700 font-semibold">
-                    {r.bidPrice}
+                  <td className={`px-3 py-2 border text-right font-semibold ${priceColor(r.bidPrice, r.ptf)}`}>{r.bidPrice}</td>
+                  <td className="px-3 py-2 border text-center">
+                    <div className="flex h-3 w-16 mx-auto rounded overflow-hidden bg-gray-100">
+                      <div className="bg-green-400" style={{ width: "50%" }} />
+                      <div className="bg-red-400" style={{ width: "50%" }} />
+                    </div>
                   </td>
-                  <td className="px-3 py-2 border text-right">{r.diff}</td>
-                  <td className="px-3 py-2 border text-right text-red-600 font-semibold">
-                    {r.askPrice}
-                  </td>
+                  <td className={`px-3 py-2 border text-right font-semibold ${priceColor(r.askPrice, r.ptf)}`}>{r.askPrice}</td>
                   <td className="px-3 py-2 border text-right">{r.askQty}</td>
-                  <td className="px-3 py-2 border text-right">{r.ptf}</td>
-                  <td className="px-3 py-2 border text-right">{r.aof}</td>
+                  <td className="px-3 py-2 border text-right">{r.netPos}</td>
                   <td className="px-3 py-2 border text-center">{r.remaining}</td>
-                  <td className="px-3 py-2 border text-right">{r.matchBuy}</td>
-                  <td className="px-3 py-2 border text-right">{r.matchSell}</td>
-                  <td className="px-3 py-2 border text-right">{r.matchNet}</td>
-                  <td className="px-3 py-2 border text-right">{r.myBuyPrice}</td>
-                  <td className="px-3 py-2 border text-right">{r.mySellPrice}</td>
-                  <td className="px-3 py-2 border text-right">{r.te0}</td>
-                  <td className="px-3 py-2 border text-right">{r.tgs}</td>
                   <td className="px-3 py-2 border text-center">
                     <BotCell status={bot?.status} onClick={() => openBotPanel(r.contract)} />
                   </td>
                 </tr>
               );
             })}
-
             {rowList.length === 0 && (
-              <tr>
-                <td colSpan={17} className="px-3 py-6 text-center text-gray-500">
-                  Henüz veri yok — WS bağlanıyor...
-                </td>
-              </tr>
+              <tr><td colSpan={12} className="px-3 py-6 text-center text-gray-500">Henüz veri yok — WS bağlanıyor...</td></tr>
             )}
           </tbody>
         </table>
       </div>
-
-      <BotPanel
-        open={panelOpen}
-        kontrat={selectedContract}
-        existingBot={botForContract(selectedContract)}
-        onClose={() => setPanelOpen(false)}
-        onSaved={refreshBots}
-      />
+      <BotPanel open={panelOpen} kontrat={selectedContract} existingBot={botForContract(selectedContract)} onClose={() => setPanelOpen(false)} onSaved={refreshBots} />
     </div>
   );
 }

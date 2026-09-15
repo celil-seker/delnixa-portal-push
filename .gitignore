@@ -1,12 +1,6 @@
-db_data/
-node_modules/
-frontend/.next/
-backend/__pycache__/
-.env
-*.log
-*.db
-__pycache__/
 certs/
-.env.local
-*.pem
+.env
 frontend/.env.local
+node_modules/
+__pycache__/
+*.pem

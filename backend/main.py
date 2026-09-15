@@ -49,6 +49,10 @@ class Bot(Base):
     target_quantity = Column(Float, nullable=False)
     filled_quantity = Column(Float, default=0)
     status = Column(String, default="ACTIVE")
+    slice = Column(Float, default=5)
+    rabbit_limit = Column(Float, default=0)
+    second_offer_price_diff = Column(Float, default=0.01)
+    shooter_max_volume = Column(Float, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -59,10 +63,7 @@ class LoginIn(BaseModel):
     password: str
 
 def make_token(username: str):
-    payload = {
-        "sub": username,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-    }
+    payload = {"sub": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 def verify_password(raw, hashed):
