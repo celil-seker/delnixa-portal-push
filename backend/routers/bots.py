@@ -11,6 +11,12 @@ DB_URL = os.getenv("DATABASE_URL", "postgresql://delnixa:delnixa@db:5432/delnixa
 engine = create_engine(DB_URL)
 SessionLocal = sessionmaker(bind=engine)
 
+VALID_ALGORITHMS = {
+    "TARGET_NET_POSITION", "TARGET_NET_POSITION_SHOOTER",
+    "BECOME_BEST_BUYER", "BECOME_BEST_SELLER",
+    "GHOST_BUYER", "GHOST_SELLER",
+}
+
 def get_username(portal_token: str):
     try:
         return jwt.decode(portal_token, JWT_SECRET, algorithms=[JWT_ALGO])["sub"]
@@ -28,6 +34,7 @@ class BotIn(BaseModel):
     rabbit_limit: float = 0
     second_offer_price_diff: float = 0.01
     shooter_max_volume: float = 0
+    algorithm: str = "TARGET_NET_POSITION"
 
 class BotStatusIn(BaseModel):
     status: str
@@ -42,6 +49,8 @@ def _user_id(db, username):
 def upsert_bot(body: BotIn, username: str = Depends(get_username)):
     if body.side not in ("BUY", "SELL"):
         raise HTTPException(400, "side BUY veya SELL olmalı")
+    if body.algorithm not in VALID_ALGORITHMS:
+        raise HTTPException(400, f"algorithm şunlardan biri olmalı: {VALID_ALGORITHMS}")
     if body.min_price > body.max_price:
         raise HTTPException(400, "min_price max_price'tan büyük olamaz")
     if body.slice <= 0:
@@ -53,20 +62,22 @@ def upsert_bot(body: BotIn, username: str = Depends(get_username)):
                                {"uid": uid, "c": body.contract_name}).fetchone()
         params = {"region": body.region, "side": body.side, "minp": body.min_price, "maxp": body.max_price,
                   "tq": body.target_quantity, "slice": body.slice, "rabbit": body.rabbit_limit,
-                  "diff": body.second_offer_price_diff, "shooter": body.shooter_max_volume}
+                  "diff": body.second_offer_price_diff, "shooter": body.shooter_max_volume, "algo": body.algorithm}
         if existing:
             db.execute(text("""
                 UPDATE bots SET region=:region, side=:side, min_price=:minp, max_price=:maxp,
                 target_quantity=:tq, filled_quantity=0, status='ACTIVE', updated_at=now(),
-                slice=:slice, rabbit_limit=:rabbit, second_offer_price_diff=:diff, shooter_max_volume=:shooter
+                slice=:slice, rabbit_limit=:rabbit, second_offer_price_diff=:diff, shooter_max_volume=:shooter,
+                algorithm=:algo
                 WHERE id=:id
             """), {**params, "id": existing.id})
             bot_id = existing.id
         else:
             row = db.execute(text("""
                 INSERT INTO bots (user_id, contract_name, region, side, min_price, max_price, target_quantity,
-                filled_quantity, status, created_at, updated_at, slice, rabbit_limit, second_offer_price_diff, shooter_max_volume)
-                VALUES (:uid, :c, :region, :side, :minp, :maxp, :tq, 0, 'ACTIVE', now(), now(), :slice, :rabbit, :diff, :shooter)
+                filled_quantity, status, created_at, updated_at, slice, rabbit_limit, second_offer_price_diff,
+                shooter_max_volume, algorithm)
+                VALUES (:uid, :c, :region, :side, :minp, :maxp, :tq, 0, 'ACTIVE', now(), now(), :slice, :rabbit, :diff, :shooter, :algo)
                 RETURNING id
             """), {**params, "uid": uid, "c": body.contract_name}).fetchone()
             bot_id = row.id

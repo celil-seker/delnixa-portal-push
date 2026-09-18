@@ -53,6 +53,7 @@ class Bot(Base):
     rabbit_limit = Column(Float, default=0)
     second_offer_price_diff = Column(Float, default=0.01)
     shooter_max_volume = Column(Float, default=0)
+    algorithm = Column(String, default="TARGET_NET_POSITION")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
 

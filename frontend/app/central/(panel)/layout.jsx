@@ -1,88 +1,116 @@
 "use client";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Zap,
-  BarChart3,
-  Settings,
-  Cpu,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-} from "lucide-react";
+const menuItems = [
+  { label: "Ana Sayfa", href: "/central/dashboard", icon: "🏠" },
+  {
+    label: "Gün İçi Piyasası", icon: "🛒",
+    children: [{ label: "GİP Planlama", href: "/central/gunici" }],
+  },
+  {
+    label: "SmartBot", icon: "⚡",
+    children: [{ label: "Ticari Botlar", href: "/central/bots" }],
+  },
+];
 
 export default function CentralLayout({ children }) {
+  const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [now, setNow] = useState(new Date());
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("portal_token");
+    if (!token) { router.push("/central"); return; }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setUsername(payload.sub || "");
+    } catch (e) {}
+  }, [router]);
+
+  function logout() {
+    localStorage.removeItem("portal_token");
+    localStorage.removeItem("access_token");
+    router.push("/central");
+  }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-
-      {/* SOL MENÜ */}
-      <aside
-        className={`${
-          collapsed ? "w-20" : "w-64"
-        } bg-white text-gray-800 border-r border-gray-200 flex flex-col transition-all duration-300`}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          {!collapsed && <span className="text-xl font-bold tracking-wide">⚡ Delnixa</span>}
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            {collapsed ? <ChevronRight /> : <ChevronLeft />}
-          </button>
+    <div className="flex h-screen bg-[#F4F6F9] text-[#0A1A2F]" style={{ fontFamily: "Inter, Segoe UI, Arial, sans-serif" }}>
+      {/* SIDEBAR */}
+      <aside className="w-60 bg-[#1A1D21] text-white flex flex-col shrink-0">
+        <div className="flex items-center gap-2 px-5 py-5 border-b border-white/5">
+          <img src="/logo.svg" alt="Delnixa" className="w-8 h-8" />
+          <span className="font-semibold tracking-wide">Delnixa Portal</span>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          <button onClick={() => router.push("/central/dashboard")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <LayoutDashboard size={18} /> {!collapsed && <span>Anasayfa</span>}
-          </button>
-
-          <button onClick={() => router.push("/central/gunoncesi")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <BarChart3 size={18} /> {!collapsed && <span>Gün Öncesi Piyasası</span>}
-          </button>
-
-          <button onClick={() => router.push("/central/gunici")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <Zap size={18} /> {!collapsed && <span>Gün İçi Piyasası</span>}
-          </button>
-
-          <button onClick={() => router.push("/central/botlar")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <Cpu size={18} /> {!collapsed && <span>Botlar</span>}
-          </button>
-
-          <button onClick={() => router.push("/central/raporlar")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <FileText size={18} /> {!collapsed && <span>Raporlar</span>}
-          </button>
-
-          <button onClick={() => router.push("/central/ayarlar")} className="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100">
-            <Settings size={18} /> {!collapsed && <span>Ayarlar</span>}
-          </button>
+        <nav className="flex-1 py-3 overflow-y-auto">
+          {menuItems.map((item) => {
+            const hasChildren = !!item.children;
+            const isOpen = openMenu === item.label;
+            const isActiveParent = hasChildren && item.children.some((c) => pathname?.startsWith(c.href));
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={() => {
+                    if (hasChildren) setOpenMenu(isOpen ? null : item.label);
+                    else router.push(item.href);
+                  }}
+                  className={`w-full flex items-center justify-between px-5 py-2.5 text-sm transition-colors
+                    ${isActiveParent || pathname === item.href ? "bg-[#93D502]/15 text-[#93D502]" : "text-white/70 hover:bg-white/5 hover:text-[#93D502]"}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </span>
+                  {hasChildren && <span className="text-xs">{isOpen ? "▲" : "▼"}</span>}
+                </button>
+                {hasChildren && isOpen && (
+                  <div className="bg-black/20">
+                    {item.children.map((c) => (
+                      <button
+                        key={c.href}
+                        onClick={() => router.push(c.href)}
+                        className={`w-full text-left px-10 py-2 text-sm transition-colors
+                          ${pathname?.startsWith(c.href) ? "text-[#93D502] font-semibold" : "text-white/60 hover:text-white"}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 flex items-center justify-center">
-          <button
-            onClick={() => {
-              localStorage.removeItem("access_token");
-              router.push("/central");
-            }}
-            className="flex items-center gap-2 text-sm text-gray-700 hover:text-red-600"
-          >
-            <LogOut size={16} /> {!collapsed && <span>Çıkış Yap</span>}
-          </button>
+        <div className="border-t border-white/5 px-5 py-3 text-xs text-white/50">
+          © {now.getFullYear()} Delnixa Energy Intelligence
         </div>
       </aside>
 
-      {/* SAYFA */}
-      <main className="flex-1 p-6">
-        {children}
-      </main>
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* TOPBAR */}
+        <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+          <div className="text-xs text-gray-500">
+            {now.toLocaleDateString("tr-TR")} {now.toLocaleTimeString("tr-TR")} (UTC+03:00)
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-[#1A1D21]">{username}</span>
+            <button onClick={logout} className="text-xs text-red-600 hover:underline">Çıkış Yap</button>
+          </div>
+        </header>
 
+        {/* PAGE CONTENT */}
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 }
-

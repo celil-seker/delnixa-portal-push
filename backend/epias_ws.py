@@ -19,6 +19,7 @@ SERVICE_URL  = f"{BASE_URL}/gunici-service"
 TRADING_URL  = f"{BASE_URL}/gunici-trading-service"
 USERINFO_URL = f"{SERVICE_URL}/rest/v1/user/info"
 OFFER_SAVE_URL = f"{TRADING_URL}/rest/v1/offer/hourly/save"
+OFFER_UPDATE_URL = f"{TRADING_URL}/rest/v1/offer/hourly/update"
 
 def verify_portal_token(token: str):
     try:
@@ -61,10 +62,27 @@ def get_epias_jwt_and_ws(tgt):
     return access_token, ws_path, ws_url
 
 def place_offer(access_token, contract_name, side, price, quantity, region="TR1"):
+    """YENİ teklif oluşturur (o kontratta hiç açık teklif yoksa çağrılmalı)."""
     return requests.post(
         OFFER_SAVE_URL,
         headers={"intraday-jwt": access_token, "Content-Type": "application/json", "Accept": "application/json"},
         json={
+            "contractName": contract_name, "offerType": side, "optionType": "NORMAL",
+            "price": price, "quantity": quantity, "region": region,
+            "description": "delnixa-bot", "expireTime": None, "priceLeveledOfferDetails": None,
+            "isActive": True, "isConfirmed": False, "timeLeveledOfferDetails": None,
+        },
+        verify=False, timeout=10,
+    )
+
+def update_offer(access_token, offer_id, version, contract_name, side, price, quantity, region="TR1"):
+    """VAR OLAN teklifi günceller (id + version zorunlu — OFFER008/OFFER048)."""
+    return requests.post(
+        OFFER_UPDATE_URL,
+        headers={"intraday-jwt": access_token, "Content-Type": "application/json", "Accept": "application/json"},
+        json={
+            "id": offer_id,
+            "version": version,
             "contractName": contract_name, "offerType": side, "optionType": "NORMAL",
             "price": price, "quantity": quantity, "region": region,
             "description": "delnixa-bot", "expireTime": None, "priceLeveledOfferDetails": None,
